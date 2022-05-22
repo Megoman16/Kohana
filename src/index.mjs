@@ -1,7 +1,7 @@
 import Eris from 'eris'
 import {readdir} from 'fs/promises';
 
-import {botToken} from './static/config.mjs';
+import {botToken} from '/static/config.mjs';
 
 const bot = new Eris(botToken, {
 	intents: [
@@ -11,18 +11,21 @@ const bot = new Eris(botToken, {
 
 bot.once("ready", async () => {
 	console.log("Ready!");
-
-	const commands = new Map(
-		await Promise.all(
-			(await bot.getCommands()).map((command) => [command.name, command])
-		)
-	);
 	
-	const slashCommands = (await readdir('./slashCommands')).filter(name => name.endsWith(".mjs")).map(name => name.split(".")[0]);
-	slashCommands.map(async name => {
-		const { description, options } = await import(`./slashCommands/${name}.mjs`);
-		if (commands.has(name)) bot.editCommand(commands.get(name).id, {name, description, options})
-		else bot.createCommand({ name, description, options, type: 1 });
+	const slashCommands = (await readdir('./slashCommands')).filter(name => name.endsWith(".mjs"))
+	
+	const commands = await Promise.all(slashCommands.map(async cmdName => {
+		const { description, options } = await import(`./slashCommands/${cmdName}`);
+		return {
+			name: cmdName.replace(".mjs", ""),
+			description,
+			options,
+			type: 1
+		}
+	}));
+
+	bot.bulkEditCommands(commands).catch(err=>{
+		console.log("error updateing commands")
 	})
 })
 
